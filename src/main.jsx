@@ -599,7 +599,7 @@ function ProductCard({ product, index, onAdd, onOpen }) {
         <div><span className="product-card__category">{product.category}</span><h3>{product.name}</h3><p>{product.subtitle}</p></div>
         <span className="product-card__price">{money(product.price)}</span>
       </div>
-      <div className="product-card__bottom"><span className={`stock-note ${product.stock < 6 ? 'stock-note--critical' : ''}`}><i /> {product.stock < 6 ? `Quedan ${product.stock}` : 'Disponible'}</span><button className="add-product-button" onClick={() => requiresSize ? onOpen(product) : onAdd(product)}><Plus size={16} /><span>{requiresSize ? 'Elegir talla' : 'Agregar'}</span></button></div>
+      <div className="product-card__bottom"><span className={`stock-note ${product.stock < 6 ? 'stock-note--critical' : ''}`}><i /> {product.stock < 6 ? `Quedan ${product.stock}` : 'Disponible'}</span><button className="add-product-button" onClick={() => requiresSize ? onOpen(product) : onAdd(product)} aria-label={`${requiresSize ? 'Elegir talla para' : 'Agregar'} ${product.name}`}><Plus size={16} /><span>{requiresSize ? 'Elegir talla' : 'Agregar'}</span></button></div>
       <span className="product-card__badge">{product.badge}</span>
     </article>
   );
@@ -671,6 +671,14 @@ function CartDrawer({ cart, setCart, inventory, isOpen, onClose, onCheckout }) {
   const getStock = (item) => inventory.find((product) => product.id === item.id)?.stock ?? item.stock;
   const updateQuantity = (lineKey, delta) => setCart((current) => current.map((item) => cartLineKey(item) === lineKey ? { ...item, quantity: Math.min(getStock(item), Math.max(1, item.quantity + delta)) } : item));
   const remove = (lineKey) => setCart((current) => current.filter((item) => cartLineKey(item) !== lineKey));
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKeyDown); };
+  }, [isOpen, onClose]);
   return <><button className={`drawer-backdrop ${isOpen ? 'is-open' : ''}`} onClick={onClose} aria-label="Cerrar carrito" /><aside className={`cart-drawer ${isOpen ? 'is-open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="cart-title" aria-hidden={!isOpen}><div className="cart-drawer__header"><div><span className="eyebrow"><span className="eyebrow__dot" /> Tu selección</span><h2 id="cart-title">Carrito <small>{cart.length} {cart.length === 1 ? 'pieza' : 'piezas'}</small></h2></div><button className="icon-button" onClick={onClose} aria-label="Cerrar carrito"><X size={19} /></button></div>{cart.length === 0 ? <div className="cart-empty"><div className="cart-empty__icon"><ShoppingBag size={22} /></div><h3>Tu carrito está vacío</h3><p>Agrega una pieza para empezar a representar lo tuyo.</p><button className="button button--dark" onClick={onClose}>Explorar colección</button></div> : <><div className="cart-drawer__items">{cart.map((item) => <div className="cart-item" key={cartLineKey(item)}><div className={`cart-item__thumb cart-item__thumb--${item.accent}`}><ProductArt product={item} small /></div><div className="cart-item__copy"><div><strong>{item.name}</strong><span>{item.subtitle}{item.size ? ` · Talla ${item.size}` : ''}</span></div><b>{money(item.price)}</b><div className="quantity-control"><button onClick={() => updateQuantity(cartLineKey(item), -1)} aria-label="Disminuir cantidad"><Minus size={13} /></button><span>{item.quantity}</span><button onClick={() => updateQuantity(cartLineKey(item), 1)} aria-label="Aumentar cantidad"><Plus size={13} /></button><button className="quantity-control__remove" onClick={() => remove(cartLineKey(item))} aria-label={`Eliminar ${item.name}`}><X size={13} /></button></div></div></div>)}</div><div className="cart-drawer__footer"><div className="cart-total"><span>Subtotal</span><strong>{money(total)}</strong></div><small>Envío calculado al solicitar el pedido.</small><button className="button button--lime button--full" onClick={onCheckout}>Solicitar pedido <ArrowUpRight size={16} /></button><span className="secure-note"><Check size={13} /> Solicitud registrada · confirmación por DM</span></div></>}</aside></>;
 }
 
@@ -694,11 +702,11 @@ function ProductModal({ product, onClose, onAdd }) {
   if (!product) return null;
   const gallery = product.gallery?.length ? product.gallery : [product.image];
   const requiresSize = product.category === 'Shorts';
-  return <><button className="modal-backdrop" onClick={onClose} aria-label="Cerrar detalle" /><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title"><button className="icon-button product-modal__close" onClick={onClose} aria-label="Cerrar detalle"><X size={19} /></button><div className="product-modal__visual"><ProductArt product={product} imageOverride={activeImage} />{gallery.length > 1 && <div className="product-modal__gallery" aria-label="Fotos del producto">{gallery.map((image, index) => <button key={image} type="button" className={activeImage === image ? 'is-active' : ''} onClick={() => setActiveImage(image)} aria-current={activeImage === image ? 'true' : undefined} aria-label={`Ver foto ${index + 1} de ${product.name}`}><img src={image} alt="" /></button>)}</div>}</div><div className="product-modal__copy"><span className="eyebrow"><span className="eyebrow__dot" /> {product.category} · {product.code}</span><h2 id="product-modal-title">{product.name}</h2><p className="product-modal__subtitle">{product.subtitle}</p><strong className="product-modal__price">{money(product.price)}</strong><p className="product-modal__description">{product.description}</p><div className="detail-list">{product.details.map((detail) => <span key={detail}><Check size={14} />{detail}</span>)}</div>{requiresSize && <label className="size-picker"><span>Talla</span><select value={size} onChange={(event) => setSize(event.target.value)}><option value="">Selecciona una talla</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option></select></label>}<div className="modal-buy-row"><div className="quantity-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={13} /></button><span>{quantity}</span><button type="button" onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}><Plus size={13} /></button></div><button className="button button--dark button--full" disabled={product.stock < 1 || (requiresSize && !size)} onClick={() => onAdd(product, quantity, size)}>{product.stock < 1 ? 'Agotada' : requiresSize ? 'Elegir talla para continuar' : 'Agregar al carrito'} <Plus size={16} /></button></div><small className="modal-stock"><i /> {product.stock < 6 ? `Solo quedan ${product.stock} unidades` : 'Listo para solicitar por DM'}</small></div></div></>;
+  return <><button className="modal-backdrop" onClick={onClose} aria-label="Cerrar detalle" /><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title"><button className="icon-button product-modal__close" onClick={onClose} aria-label="Cerrar detalle" autoFocus><X size={19} /></button><div className="product-modal__visual"><ProductArt product={product} imageOverride={activeImage} />{gallery.length > 1 && <div className="product-modal__gallery" aria-label="Fotos del producto">{gallery.map((image, index) => <button key={image} type="button" className={activeImage === image ? 'is-active' : ''} onClick={() => setActiveImage(image)} aria-current={activeImage === image ? 'true' : undefined} aria-label={`Ver foto ${index + 1} de ${product.name}`}><img src={image} alt="" /></button>)}</div>}</div><div className="product-modal__copy"><span className="eyebrow"><span className="eyebrow__dot" /> {product.category} · {product.code}</span><h2 id="product-modal-title">{product.name}</h2><p className="product-modal__subtitle">{product.subtitle}</p><strong className="product-modal__price">{money(product.price)}</strong><p className="product-modal__description">{product.description}</p><div className="detail-list">{product.details.map((detail) => <span key={detail}><Check size={14} />{detail}</span>)}</div>{requiresSize && <label className="size-picker"><span>Talla</span><select value={size} onChange={(event) => setSize(event.target.value)}><option value="">Selecciona una talla</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option></select></label>}<div className="modal-buy-row"><div className="quantity-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} aria-label={`Disminuir cantidad de ${product.name}`}><Minus size={13} /></button><span>{quantity}</span><button type="button" onClick={() => setQuantity(Math.min(product.stock, quantity + 1))} aria-label={`Aumentar cantidad de ${product.name}`}><Plus size={13} /></button></div><button className="button button--dark button--full" disabled={product.stock < 1 || (requiresSize && !size)} onClick={() => onAdd(product, quantity, size)}>{product.stock < 1 ? 'Agotada' : requiresSize && !size ? 'Elegir talla para continuar' : 'Agregar al carrito'} <Plus size={16} /></button></div><small className="modal-stock"><i /> {product.stock < 6 ? `Solo quedan ${product.stock} unidades` : 'Listo para solicitar por DM'}</small></div></div></>;
 }
 
 function EntryGate({ onEnter }) {
-  return <main className="entry-gate">
+  return <main className="entry-gate" aria-labelledby="entry-title" aria-describedby="entry-description">
     <div className="entry-gate__grain" />
     <div className="entry-gate__court entry-gate__court--left" />
     <div className="entry-gate__court entry-gate__court--right" />
@@ -707,9 +715,9 @@ function EntryGate({ onEnter }) {
     <div className="entry-gate__top"><span>SÚPER SUERO / GORRAS + SHORTS</span><span>RD / 2026</span></div>
     <div className="entry-gate__center">
       <div className="entry-gate__mark"><BrandMark inverse compact /></div>
-      <div className="entry-gate__title"><span>SÚPER</span><strong>SUERO</strong></div>
-      <p>Gorras + shorts.<br />Una marca del jugador de baloncesto dominicano.</p>
-      <button className="entry-gate__cta" onClick={onEnter}>Entrar a la tienda <ArrowUpRight size={17} /></button>
+      <h1 className="entry-gate__title" id="entry-title"><span>SÚPER</span><strong>SUERO</strong></h1>
+      <p id="entry-description">Gorras + shorts.<br />Una marca del jugador de baloncesto dominicano.</p>
+      <button type="button" className="entry-gate__cta" onClick={onEnter} autoFocus>Entrar a la tienda <ArrowUpRight size={17} /></button>
     </div>
     <div className="entry-gate__bottom"><span><i /> @supersuerohats</span><span>Ángel Gerardo Suero Castillo · Hecho en RD</span><span>DM para pedidos 📩</span></div>
   </main>;
@@ -728,7 +736,7 @@ function App() {
   const [cart, setCart] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('super-suero-cart') || '[]');
-      return stored.map((item) => { const current = products.find((product) => product.id === item.id); return current ? { ...current, quantity: item.quantity } : null; }).filter(Boolean);
+      return stored.map((item) => { const current = products.find((product) => product.id === item.id); return current ? { ...current, size: item.size || '', quantity: item.quantity } : null; }).filter(Boolean);
     } catch { return []; }
   });
   const [orders, setOrders] = useState(initialOrders);
@@ -740,6 +748,12 @@ function App() {
   const [showProductPrompt, setShowProductPrompt] = useState(false);
 
   useEffect(() => { localStorage.setItem('super-suero-cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => {
+    const previousRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => { window.history.scrollRestoration = previousRestoration; };
+  }, []);
+  useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); }, [page]);
 
   const navigatePage = (next) => { setPage(next); setCartOpen(false); setMobileOpen(false); };
 

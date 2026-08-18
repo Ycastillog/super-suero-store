@@ -25,6 +25,7 @@
     linear-gradient(90deg, transparent 0 7%, rgba(255, 255, 255, .025) 7% 7.2%, transparent 7.2% 100%),
     #080808;
 }
+.entry-gate__grain { opacity: .08; }
 .entry-gate::before {
   inset: 10px;
   border-color: rgba(255, 255, 255, .2);
@@ -41,7 +42,7 @@
   pointer-events: none;
   z-index: 1;
 }
-.entry-gate__court, .entry-gate__orbit { border-color: rgba(255, 255, 255, .14); opacity: 1; }
+.entry-gate__court, .entry-gate__orbit { border-color: rgba(255, 255, 255, .14); opacity: .76; }
 .entry-gate__court--left { display: block; width: 66vw; height: 66vw; left: -48vw; top: 17vh; }
 .entry-gate__court--right { width: 58vw; height: 58vw; right: -39vw; top: -15vh; border-color: rgba(227, 59, 55, .34); }
 .entry-gate__orbit--one { width: 76vw; height: 27vw; left: 12%; top: 55%; border-color: rgba(227, 59, 55, .36); transform: rotate(-13deg); }
@@ -96,6 +97,7 @@
 .entry-gate__title {
   position: relative;
   z-index: 1;
+  margin: 0;
   font-family: var(--display), Arial, Helvetica, sans-serif;
   font-size: clamp(64px, 10vw, 138px);
   font-weight: 800;
@@ -316,10 +318,10 @@
   .entry-gate__court--right { width: 96vw; height: 96vw; right: -69vw; top: -7vh; }
   .entry-gate__orbit--one { width: 148vw; height: 59vw; left: -24vw; top: 55%; transform: rotate(-12deg); }
   .entry-gate__orbit--two { width: 63vw; height: 124vh; left: 17%; top: -11%; transform: rotate(24deg); }
-  .entry-gate__center { width: 100%; max-width: 430px; margin-top: 0; padding: 22px 16px 28px; box-shadow: 6px 6px 0 rgba(227, 59, 55, .16); }
+  .entry-gate__center { width: 100%; max-width: 430px; margin-top: -4vh; padding: 22px 16px 28px; box-shadow: 6px 6px 0 rgba(227, 59, 55, .16); }
   .entry-gate__center::before { inset: 7px; }
   .entry-gate__center::after { width: 54px; height: 2px; }
-  .entry-gate__mark { width: 118px; height: 118px; padding: 9px; margin-bottom: 25px; box-shadow: 4px 4px 0 var(--brand-red), 0 0 0 5px rgba(255, 255, 255, .035); }
+  .entry-gate__mark { width: 118px; height: 118px; padding: 9px; margin-bottom: 20px; box-shadow: 4px 4px 0 var(--brand-red), 0 0 0 5px rgba(255, 255, 255, .035); }
   .entry-gate__mark::before { inset: -10px; }
   .entry-gate__mark::after { inset: -6px; }
   .entry-gate__mark .brand-mark__seal { width: 100px; height: 100px; }
@@ -379,6 +381,13 @@
 @media (prefers-reduced-motion: reduce) {
   .entry-gate__center { animation: none; }
   .entry-gate__cta { transition: none; }
+}
+
+#brand-story { scroll-margin-top: 92px; }
+.cart-drawer { width: min(430px, 100%); }
+.store-page :where(a, button, input, select):focus-visible {
+  outline: 2px solid var(--brand-red);
+  outline-offset: 4px;
 }
 
 /* Final storefront polish: keep the identity strong while making the catalog easier to use. */
