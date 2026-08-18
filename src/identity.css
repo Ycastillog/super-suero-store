@@ -203,7 +203,7 @@
 .hero-photo { position: absolute; width: min(295px, 30vw); aspect-ratio: .84; background: #fff; border: 1px solid #242321; }
 .hero-photo .product-art { height: 100%; border: 0; }
 .hero-photo--back { top: 76px; left: 13%; transform: rotate(8deg); }
-.hero-photo--front { top: 105px; left: 39%; transform: rotate(-6deg); z-index: 3; box-shadow: 0 18px 35px rgba(0,0,0,.13); }
+.hero-photo--front { top: 105px; left: 39%; transform: rotate(-6deg); z-index: 3; }
 .hero-seal { position: absolute; bottom: 36px; left: 8%; z-index: 5; display: flex; align-items: center; gap: 8px; color: #2b2a27; font: 7px var(--mono); letter-spacing: .1em; line-height: 1.25; }
 .hero-seal .brand-mark__seal { width: 40px; height: 40px; }
 .hero-sticker--top { top: 45px; right: 9%; color: var(--brand-red); font-family: Georgia, serif; font-size: 19px; font-style: italic; letter-spacing: -.07em; text-align: left; line-height: .75; transform: rotate(-7deg); }
