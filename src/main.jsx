@@ -215,8 +215,8 @@ const products = [
     accent: 'ink',
     badge: 'Disponible',
     code: 'SS-HAT-011',
-    image: publicAsset('products/caps/black-gold-front.jpg'),
-    gallery: [publicAsset('products/caps/black-gold-front.jpg'), publicAsset('products/caps/black-gold-side.jpg')],
+    image: publicAsset('products/caps/black-gold-side.jpg'),
+    gallery: [publicAsset('products/caps/black-gold-side.jpg'), publicAsset('products/caps/black-gold-front.jpg')],
     imagePosition: 'center 47%',
     description: 'Negra con costuras blancas, visera camel y una S dorada que resalta desde cualquier ángulo.',
     details: ['Costuras de contraste', 'Logo S dorado', 'Visera camel', 'Cierre ajustable'],
@@ -315,6 +315,11 @@ const initialOrders = [
 
 const money = (value) => `RD$${new Intl.NumberFormat('es-DO').format(value)}`;
 const formatNumber = (value) => new Intl.NumberFormat('es-DO').format(value);
+const cartLineKey = (item) => `${item.id}:${item.size || 'default'}`;
+
+function requestStoreCategory(category) {
+  window.dispatchEvent(new CustomEvent('super-suero:category', { detail: category }));
+}
 
 function BrandMark({ inverse = false, compact = false }) {
   return (
@@ -375,7 +380,7 @@ function ProductArt({ product, small = false, hero = false, imageOverride }) {
         <span className="cap-art__strap" />
       </div>
       {product.name.includes('Peace') && <span className="cap-art__word">PEACE</span>}
-      {product.name.includes('Respeto') && <span className="cap-art__word">RESPETO</span>}
+      {product.name.includes('Respect') && <span className="cap-art__word">RESPECT</span>}
       <span className="product-art__ghost">{product.subtitle}</span>
       <span className="product-art__tag">SÚPER SUERO</span>
       {product.accent === 'caribe' && <span className="product-art__confetti product-art__confetti--one" />}
@@ -432,9 +437,9 @@ function Sidebar({ page, setPage, cartCount, lowStockCount, onCart, mobileOpen, 
           </div>
         </div>
       </aside>
-      <div className="mobile-cart-button" onClick={onCart} role="button" tabIndex="0" aria-label="Abrir carrito">
+      <button type="button" className="mobile-cart-button" onClick={onCart} aria-label="Abrir carrito">
         <ShoppingCart size={18} /><span>{cartCount}</span>
-      </div>
+      </button>
     </>
   );
 }
@@ -445,7 +450,7 @@ function Topbar({ page, setPage, setMobileOpen, onCart, cartCount, onAddProduct 
     <header className="topbar topbar--storefront">
       <a className="storefront-brand" href="#top" aria-label="Súper Suero"><BrandMark /></a>
       <nav className="storefront-nav" aria-label="Navegación de tienda">
-        <a href="#shop">Gorras</a><a href="#shop">Shorts</a><a href="#brand-story">La marca</a><a href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer">Instagram ↗</a>
+        <button type="button" onClick={() => requestStoreCategory('Gorras')}>Gorras</button><button type="button" onClick={() => requestStoreCategory('Shorts')}>Shorts</button><a href="#brand-story">La marca</a><a href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer">Instagram ↗</a>
       </nav>
       <div className="topbar__actions">
         <button className="storefront-admin-link" onClick={() => setPage('dashboard')}>Acceso interno ↗</button>
@@ -489,14 +494,26 @@ function AnnouncementStrip() {
   );
 }
 
-function StorePage({ onAddToCart, onOpenProduct, setPage }) {
+function StorePage({ inventory, onAddToCart, onOpenProduct, setPage }) {
   const [category, setCategory] = useState('Todo');
   const [query, setQuery] = useState('');
-  const filteredProducts = useMemo(() => products.filter((product) => {
+  const catalogProducts = useMemo(() => products.map((product) => {
+    const liveProduct = inventory.find((item) => item.id === product.id);
+    return liveProduct ? { ...product, stock: liveProduct.stock, sold: liveProduct.sold } : product;
+  }), [inventory]);
+  useEffect(() => {
+    const handleCategoryRequest = (event) => {
+      setCategory(event.detail || 'Todo');
+      requestAnimationFrame(() => document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    };
+    window.addEventListener('super-suero:category', handleCategoryRequest);
+    return () => window.removeEventListener('super-suero:category', handleCategoryRequest);
+  }, []);
+  const filteredProducts = useMemo(() => catalogProducts.filter((product) => {
     const matchCategory = category === 'Todo' || product.category === category;
-    const matchQuery = `${product.name} ${product.subtitle}`.toLowerCase().includes(query.toLowerCase());
+    const matchQuery = `${product.name} ${product.subtitle} ${product.category} ${product.code}`.toLowerCase().includes(query.toLowerCase());
     return matchCategory && matchQuery;
-  }), [category, query]);
+  }), [catalogProducts, category, query]);
 
   return (
     <div className="store-page" id="top">
@@ -508,7 +525,7 @@ function StorePage({ onAddToCart, onOpenProduct, setPage }) {
             <div className="store-profile__handle"><h1>supersuerohats</h1><span>•••</span></div>
             <p className="store-profile__name">SÚPER SUERO GORRAS Y SHORTS</p>
             <div className="store-profile__stats"><span><strong>17</strong> publicaciones</span><span><strong>1,446</strong> seguidores</span><span><strong>12</strong> seguidos</span></div>
-            <div className="store-profile__bio"><span>Ropa (marca)</span><strong>Gorras y shorts</strong><p>Una marca del jugador de baloncesto Dominicano:<br />Ángel Gerardo Suero Castillo<br />aka SÚPER SUERO<br />DM para pedidos 📩</p></div>
+            <div className="store-profile__bio"><span>Marca de ropa</span><strong>Gorras y shorts</strong><p>Una marca del jugador de baloncesto dominicano:<br />Ángel Gerardo Suero Castillo<br />aka SÚPER SUERO<br />DM para pedidos 📩</p></div>
           </div>
         </div>
         <div className="store-profile__actions"><a className="profile-button profile-button--primary" href="#shop">Comprar ahora</a><a className="profile-button" href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer">Enviar mensaje</a><a className="profile-button profile-button--icon" href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer" aria-label="Abrir Instagram">✣</a></div>
@@ -520,7 +537,7 @@ function StorePage({ onAddToCart, onOpenProduct, setPage }) {
           <div className="eyebrow eyebrow--light"><span className="eyebrow__dot" /> Nuevo drop <span className="eyebrow__line" /></div>
           <h2>Ponte<br /><em>peluche.</em></h2>
           <p>Gorras y shorts de Súper Suero. La marca de Ángel Gerardo Suero Castillo, para la cancha y para la calle.</p>
-          <div className="store-hero__actions"><a className="button button--lime" href="#shop">Ver gorras <ArrowDownRight size={16} /></a><a className="text-button text-button--light" href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer">Ver Instagram <ArrowUpRight size={15} /></a></div>
+          <div className="store-hero__actions"><a className="button button--lime" href="#shop" onClick={() => setCategory('Gorras')}>Ver gorras <ArrowDownRight size={16} /></a><a className="text-button text-button--light" href="https://www.instagram.com/supersuerohats/" target="_blank" rel="noreferrer">Ver Instagram <ArrowUpRight size={15} /></a></div>
         </div>
         <div className="store-hero__art" aria-label="Gorras del nuevo drop">
           <div className="hero-photo hero-photo--back"><ProductArt product={products[1]} hero /></div>
@@ -542,18 +559,18 @@ function StorePage({ onAddToCart, onOpenProduct, setPage }) {
       <section className="collection-section" id="shop">
         <div className="section-heading">
           <div><div className="eyebrow"><span className="eyebrow__dot" /> Gorras y shorts</div><h2>La colección <em>real.</em></h2></div>
-          <div className="section-heading__aside"><span>{products.length.toString().padStart(2, '0')} piezas · disponibles</span><div className="heading-rule" /></div>
+          <div className="section-heading__aside"><span>{filteredProducts.length.toString().padStart(2, '0')} piezas · disponibles</span><div className="heading-rule" /></div>
         </div>
         <div className="catalog-toolbar">
           <div className="filter-tabs">
-            {['Todo', 'Gorras', 'Shorts'].map((item) => <button key={item} className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)}>{item}</button>)}
+            {['Todo', 'Gorras', 'Shorts'].map((item) => <button key={item} type="button" className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)} aria-pressed={category === item}>{item}</button>)}
           </div>
           <label className="catalog-search"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar piezas" aria-label="Buscar piezas" /></label>
         </div>
         <div className="product-grid">
           {filteredProducts.map((product, index) => <ProductCard key={product.id} product={product} index={index} onAdd={onAddToCart} onOpen={onOpenProduct} />)}
         </div>
-        {filteredProducts.length === 0 && <div className="empty-state"><Search size={20} /><strong>No encontramos esa pieza</strong><span>Prueba con “cap” o “short”.</span></div>}
+        {filteredProducts.length === 0 && <div className="empty-state"><Search size={20} /><strong>No encontramos esa pieza</strong><span>Prueba con “gorra”, “short” o el nombre del modelo.</span></div>}
       </section>
 
       <section className="manifesto-section">
@@ -573,6 +590,7 @@ function StorePage({ onAddToCart, onOpenProduct, setPage }) {
 }
 
 function ProductCard({ product, index, onAdd, onOpen }) {
+  const requiresSize = product.category === 'Shorts';
   return (
     <article className={`product-card product-card--${index === 0 ? 'featured' : 'standard'}`}>
       <button className="product-card__media" onClick={() => onOpen(product)} aria-label={`Ver ${product.name}`}><ProductArt product={product} /></button>
@@ -580,7 +598,7 @@ function ProductCard({ product, index, onAdd, onOpen }) {
         <div><span className="product-card__category">{product.category}</span><h3>{product.name}</h3><p>{product.subtitle}</p></div>
         <span className="product-card__price">{money(product.price)}</span>
       </div>
-      <div className="product-card__bottom"><span className={`stock-note ${product.stock < 6 ? 'stock-note--critical' : ''}`}><i /> {product.stock < 6 ? `Quedan ${product.stock}` : 'Disponible'}</span><button className="add-product-button" onClick={() => onAdd(product)}><Plus size={16} /><span>Agregar</span></button></div>
+      <div className="product-card__bottom"><span className={`stock-note ${product.stock < 6 ? 'stock-note--critical' : ''}`}><i /> {product.stock < 6 ? `Quedan ${product.stock}` : 'Disponible'}</span><button className="add-product-button" onClick={() => requiresSize ? onOpen(product) : onAdd(product)}><Plus size={16} /><span>{requiresSize ? 'Elegir talla' : 'Agregar'}</span></button></div>
       <span className="product-card__badge">{product.badge}</span>
     </article>
   );
@@ -635,34 +653,47 @@ function OrderTable({ orders, compact = false }) {
 function InventoryPage({ inventory, onAddProduct, onAdjustStock }) {
   const [filter, setFilter] = useState('Todos');
   const [search, setSearch] = useState('');
+  const inventoryValue = inventory.reduce((sum, item) => sum + item.price * item.stock, 0);
   const filtered = inventory.filter((product) => {
     const matchesFilter = filter === 'Todos' || (filter === 'Stock bajo' ? product.stock <= 10 : product.category === filter);
     return matchesFilter && `${product.name} ${product.code}`.toLowerCase().includes(search.toLowerCase());
   });
-  return <div className="subpage"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow__dot" /> Catálogo y existencias</div><h1>Inventario</h1><p>Controla cada pieza antes de que llegue a la calle.</p></div><div className="page-heading__actions"><button className="outline-button"><Filter size={16} /> Exportar</button><button className="button button--dark" onClick={onAddProduct}><Plus size={16} /> Nuevo producto</button></div></div><div className="inventory-summary"><div><span>Valor del inventario</span><strong>RD$ 242,380</strong><small><ArrowUpRight size={13} /> 9.2% este mes</small></div><div><span>Unidades disponibles</span><strong>{formatNumber(inventory.reduce((sum, item) => sum + item.stock, 0))}</strong><small>en {products.length} productos</small></div><div><span>Stock bajo</span><strong className="text-critical">{inventory.filter((item) => item.stock <= 10).length}</strong><small>requieren atención</small></div></div><section className="panel inventory-panel"><div className="inventory-toolbar"><div className="filter-tabs filter-tabs--panel">{['Todos', 'Gorras', 'Shorts', 'Stock bajo'].map((item) => <button key={item} className={filter === item ? 'is-active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div><label className="catalog-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o SKU" aria-label="Buscar inventario" /></label></div><div className="inventory-table"><div className="inventory-table__head"><span>Producto</span><span>Categoría</span><span>Precio</span><span>Disponibles</span><span>Vendidas</span><span>Estado</span><span /></div>{filtered.map((product) => <div className="inventory-table__row" key={product.id}><div className="inventory-product-cell"><div className={`inventory-thumb inventory-thumb--${product.accent}`}><ProductArt product={product} small /></div><span><strong>{product.name}</strong><small>{product.code}</small></span></div><span>{product.category}</span><strong>{money(product.price)}</strong><span className={`inventory-quantity ${product.stock <= 10 ? 'inventory-quantity--low' : ''}`}><b>{product.stock}</b> uds.</span><span>{product.sold}</span><span className={`inventory-status ${product.stock <= 5 ? 'inventory-status--critical' : product.stock <= 10 ? 'inventory-status--low' : ''}`}><i />{product.stock <= 5 ? 'Crítico' : product.stock <= 10 ? 'Bajo' : 'Saludable'}</span><button className="icon-button" onClick={() => onAdjustStock(product)} aria-label={`Ajustar stock de ${product.name}`}><Ellipsis size={17} /></button></div>)}</div></section></div>;
+  return <div className="subpage"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow__dot" /> Catálogo y existencias</div><h1>Inventario</h1><p>Controla cada pieza antes de que llegue a la calle.</p></div><div className="page-heading__actions"><button className="outline-button"><Filter size={16} /> Exportar</button><button className="button button--dark" onClick={onAddProduct}><Plus size={16} /> Nuevo producto</button></div></div><div className="inventory-summary"><div><span>Valor del inventario</span><strong>{money(inventoryValue)}</strong><small><ArrowUpRight size={13} /> calculado en tiempo real</small></div><div><span>Unidades disponibles</span><strong>{formatNumber(inventory.reduce((sum, item) => sum + item.stock, 0))}</strong><small>en {products.length} productos</small></div><div><span>Stock bajo</span><strong className="text-critical">{inventory.filter((item) => item.stock <= 10).length}</strong><small>requieren atención</small></div></div><section className="panel inventory-panel"><div className="inventory-toolbar"><div className="filter-tabs filter-tabs--panel">{['Todos', 'Gorras', 'Shorts', 'Stock bajo'].map((item) => <button key={item} type="button" className={filter === item ? 'is-active' : ''} onClick={() => setFilter(item)} aria-pressed={filter === item}>{item}</button>)}</div><label className="catalog-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre o SKU" aria-label="Buscar inventario" /></label></div><div className="inventory-table"><div className="inventory-table__head"><span>Producto</span><span>Categoría</span><span>Precio</span><span>Disponibles</span><span>Vendidas</span><span>Estado</span><span /></div>{filtered.map((product) => <div className="inventory-table__row" key={product.id}><div className="inventory-product-cell"><div className={`inventory-thumb inventory-thumb--${product.accent}`}><ProductArt product={product} small /></div><span><strong>{product.name}</strong><small>{product.code}</small></span></div><span>{product.category}</span><strong>{money(product.price)}</strong><span className={`inventory-quantity ${product.stock <= 10 ? 'inventory-quantity--low' : ''}`}><b>{product.stock}</b> uds.</span><span>{product.sold}</span><span className={`inventory-status ${product.stock <= 5 ? 'inventory-status--critical' : product.stock <= 10 ? 'inventory-status--low' : ''}`}><i />{product.stock <= 5 ? 'Crítico' : product.stock <= 10 ? 'Bajo' : 'Saludable'}</span><button className="icon-button" onClick={() => onAdjustStock(product)} aria-label={`Ajustar stock de ${product.name}`}><Ellipsis size={17} /></button></div>)}</div></section></div>;
 }
 
 function OrdersPage({ orders, onNavigate }) {
   return <div className="subpage"><div className="page-heading"><div><div className="eyebrow"><span className="eyebrow__dot" /> Flujo de ventas</div><h1>Pedidos</h1><p>Todo lo que está pasando después de cada compra.</p></div><div className="page-heading__actions"><button className="outline-button"><Filter size={16} /> Filtrar</button><button className="button button--dark" onClick={() => onNavigate('store')}><ShoppingBag size={16} /> Ver tienda</button></div></div><div className="order-summary"><div><span>Pedidos totales</span><strong>48</strong><small><ArrowUpRight size={13} /> 8.4% este periodo</small></div><div><span>Por preparar</span><strong>7</strong><small><Clock3 size={13} /> requieren acción</small></div><div><span>En camino</span><strong>12</strong><small><Truck size={13} /> con courier</small></div><div><span>Entregados</span><strong>29</strong><small><PackageCheck size={13} /> completados</small></div></div><section className="panel orders-full-panel"><div className="panel-heading"><div><span className="panel-kicker">Historial</span><h2>Todos los pedidos</h2></div><label className="catalog-search"><Search size={15} /><input placeholder="Buscar pedido o cliente" aria-label="Buscar pedidos" /></label></div><OrderTable orders={orders} /></section></div>;
 }
 
-function CartDrawer({ cart, setCart, isOpen, onClose, onCheckout }) {
+function CartDrawer({ cart, setCart, inventory, isOpen, onClose, onCheckout }) {
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const updateQuantity = (id, delta) => setCart((current) => current.map((item) => item.id === id ? { ...item, quantity: Math.min(item.stock, Math.max(1, item.quantity + delta)) } : item));
-  const remove = (id) => setCart((current) => current.filter((item) => item.id !== id));
-  return <><button className={`drawer-backdrop ${isOpen ? 'is-open' : ''}`} onClick={onClose} aria-label="Cerrar carrito" /><aside className={`cart-drawer ${isOpen ? 'is-open' : ''}`} aria-label="Carrito de compras"><div className="cart-drawer__header"><div><span className="eyebrow"><span className="eyebrow__dot" /> Tu selección</span><h2>Carrito <small>{cart.length} {cart.length === 1 ? 'pieza' : 'piezas'}</small></h2></div><button className="icon-button" onClick={onClose} aria-label="Cerrar carrito"><X size={19} /></button></div>{cart.length === 0 ? <div className="cart-empty"><div className="cart-empty__icon"><ShoppingBag size={22} /></div><h3>Tu carrito está vacío</h3><p>Agrega una pieza para empezar a representar lo tuyo.</p><button className="button button--dark" onClick={onClose}>Explorar colección</button></div> : <><div className="cart-drawer__items">{cart.map((item) => <div className="cart-item" key={item.id}><div className={`cart-item__thumb cart-item__thumb--${item.accent}`}><ProductArt product={item} small /></div><div className="cart-item__copy"><div><strong>{item.name}</strong><span>{item.subtitle}</span></div><b>{money(item.price)}</b><div className="quantity-control"><button onClick={() => updateQuantity(item.id, -1)} aria-label="Disminuir cantidad"><Minus size={13} /></button><span>{item.quantity}</span><button onClick={() => updateQuantity(item.id, 1)} aria-label="Aumentar cantidad"><Plus size={13} /></button><button className="quantity-control__remove" onClick={() => remove(item.id)} aria-label={`Eliminar ${item.name}`}><X size={13} /></button></div></div></div>)}</div><div className="cart-drawer__footer"><div className="cart-total"><span>Subtotal</span><strong>{money(total)}</strong></div><small>Envío calculado al confirmar el pedido.</small><button className="button button--lime button--full" onClick={onCheckout}>Confirmar pedido <ArrowUpRight size={16} /></button><span className="secure-note"><Check size={13} /> Compra segura · Cambios en 7 días</span></div></>}</aside></>;
+  const getStock = (item) => inventory.find((product) => product.id === item.id)?.stock ?? item.stock;
+  const updateQuantity = (lineKey, delta) => setCart((current) => current.map((item) => cartLineKey(item) === lineKey ? { ...item, quantity: Math.min(getStock(item), Math.max(1, item.quantity + delta)) } : item));
+  const remove = (lineKey) => setCart((current) => current.filter((item) => cartLineKey(item) !== lineKey));
+  return <><button className={`drawer-backdrop ${isOpen ? 'is-open' : ''}`} onClick={onClose} aria-label="Cerrar carrito" /><aside className={`cart-drawer ${isOpen ? 'is-open' : ''}`} role="dialog" aria-modal="true" aria-labelledby="cart-title" aria-hidden={!isOpen}><div className="cart-drawer__header"><div><span className="eyebrow"><span className="eyebrow__dot" /> Tu selección</span><h2 id="cart-title">Carrito <small>{cart.length} {cart.length === 1 ? 'pieza' : 'piezas'}</small></h2></div><button className="icon-button" onClick={onClose} aria-label="Cerrar carrito"><X size={19} /></button></div>{cart.length === 0 ? <div className="cart-empty"><div className="cart-empty__icon"><ShoppingBag size={22} /></div><h3>Tu carrito está vacío</h3><p>Agrega una pieza para empezar a representar lo tuyo.</p><button className="button button--dark" onClick={onClose}>Explorar colección</button></div> : <><div className="cart-drawer__items">{cart.map((item) => <div className="cart-item" key={cartLineKey(item)}><div className={`cart-item__thumb cart-item__thumb--${item.accent}`}><ProductArt product={item} small /></div><div className="cart-item__copy"><div><strong>{item.name}</strong><span>{item.subtitle}{item.size ? ` · Talla ${item.size}` : ''}</span></div><b>{money(item.price)}</b><div className="quantity-control"><button onClick={() => updateQuantity(cartLineKey(item), -1)} aria-label="Disminuir cantidad"><Minus size={13} /></button><span>{item.quantity}</span><button onClick={() => updateQuantity(cartLineKey(item), 1)} aria-label="Aumentar cantidad"><Plus size={13} /></button><button className="quantity-control__remove" onClick={() => remove(cartLineKey(item))} aria-label={`Eliminar ${item.name}`}><X size={13} /></button></div></div></div>)}</div><div className="cart-drawer__footer"><div className="cart-total"><span>Subtotal</span><strong>{money(total)}</strong></div><small>Envío calculado al solicitar el pedido.</small><button className="button button--lime button--full" onClick={onCheckout}>Solicitar pedido <ArrowUpRight size={16} /></button><span className="secure-note"><Check size={13} /> Solicitud registrada · confirmación por DM</span></div></>}</aside></>;
 }
 
 function ProductModal({ product, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(product?.image || '');
+  const [size, setSize] = useState('');
   useEffect(() => {
     setQuantity(1);
     setActiveImage(product?.image || '');
+    setSize('');
   }, [product]);
+  useEffect(() => {
+    if (!product) return undefined;
+    const handleKeyDown = (event) => { if (event.key === 'Escape') onClose(); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', handleKeyDown); };
+  }, [product, onClose]);
   if (!product) return null;
   const gallery = product.gallery?.length ? product.gallery : [product.image];
-  return <><button className="modal-backdrop" onClick={onClose} aria-label="Cerrar detalle" /><div className="product-modal"><button className="icon-button product-modal__close" onClick={onClose} aria-label="Cerrar detalle"><X size={19} /></button><div className="product-modal__visual"><ProductArt product={product} imageOverride={activeImage} />{gallery.length > 1 && <div className="product-modal__gallery" aria-label="Fotos del producto">{gallery.map((image, index) => <button key={image} className={activeImage === image ? 'is-active' : ''} onClick={() => setActiveImage(image)} aria-label={`Ver foto ${index + 1} de ${product.name}`}><img src={image} alt="" /></button>)}</div>}</div><div className="product-modal__copy"><span className="eyebrow"><span className="eyebrow__dot" /> {product.category} · {product.code}</span><h2>{product.name}</h2><p className="product-modal__subtitle">{product.subtitle}</p><strong className="product-modal__price">{money(product.price)}</strong><p className="product-modal__description">{product.description}</p><div className="detail-list">{product.details.map((detail) => <span key={detail}><Check size={14} />{detail}</span>)}</div><div className="modal-buy-row"><div className="quantity-control"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={13} /></button><span>{quantity}</span><button onClick={() => setQuantity(quantity + 1)}><Plus size={13} /></button></div><button className="button button--dark button--full" onClick={() => onAdd(product, quantity)}>Agregar al carrito <Plus size={16} /></button></div><small className="modal-stock"><i /> {product.stock < 6 ? `Solo quedan ${product.stock} unidades` : 'Listo para envío en 24-48 h'}</small></div></div></>;
+  const requiresSize = product.category === 'Shorts';
+  return <><button className="modal-backdrop" onClick={onClose} aria-label="Cerrar detalle" /><div className="product-modal" role="dialog" aria-modal="true" aria-labelledby="product-modal-title"><button className="icon-button product-modal__close" onClick={onClose} aria-label="Cerrar detalle"><X size={19} /></button><div className="product-modal__visual"><ProductArt product={product} imageOverride={activeImage} />{gallery.length > 1 && <div className="product-modal__gallery" aria-label="Fotos del producto">{gallery.map((image, index) => <button key={image} type="button" className={activeImage === image ? 'is-active' : ''} onClick={() => setActiveImage(image)} aria-current={activeImage === image ? 'true' : undefined} aria-label={`Ver foto ${index + 1} de ${product.name}`}><img src={image} alt="" /></button>)}</div>}</div><div className="product-modal__copy"><span className="eyebrow"><span className="eyebrow__dot" /> {product.category} · {product.code}</span><h2 id="product-modal-title">{product.name}</h2><p className="product-modal__subtitle">{product.subtitle}</p><strong className="product-modal__price">{money(product.price)}</strong><p className="product-modal__description">{product.description}</p><div className="detail-list">{product.details.map((detail) => <span key={detail}><Check size={14} />{detail}</span>)}</div>{requiresSize && <label className="size-picker"><span>Talla</span><select value={size} onChange={(event) => setSize(event.target.value)}><option value="">Selecciona una talla</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option></select></label>}<div className="modal-buy-row"><div className="quantity-control"><button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={13} /></button><span>{quantity}</span><button type="button" onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}><Plus size={13} /></button></div><button className="button button--dark button--full" disabled={product.stock < 1 || (requiresSize && !size)} onClick={() => onAdd(product, quantity, size)}>{product.stock < 1 ? 'Agotada' : requiresSize ? 'Elegir talla para continuar' : 'Agregar al carrito'} <Plus size={16} /></button></div><small className="modal-stock"><i /> {product.stock < 6 ? `Solo quedan ${product.stock} unidades` : 'Listo para solicitar por DM'}</small></div></div></>;
 }
 
 function EntryGate({ onEnter }) {
@@ -685,7 +716,7 @@ function EntryGate({ onEnter }) {
 
 function Toast({ message, onClose }) {
   useEffect(() => { const timeout = setTimeout(onClose, 3200); return () => clearTimeout(timeout); }, [onClose]);
-  return <div className="toast"><span><Check size={15} /></span>{message}</div>;
+  return <div className="toast" role="status" aria-live="polite"><span><Check size={15} /></span>{message}</div>;
 }
 
 function App() {
@@ -711,29 +742,31 @@ function App() {
 
   const navigatePage = (next) => { setPage(next); setCartOpen(false); setMobileOpen(false); };
 
-  const addToCart = (product, quantity = 1) => {
-    if (product.stock < 1) { setToast(`${product.name} está agotada`); return; }
-    const safeQuantity = Math.min(quantity, product.stock);
+  const addToCart = (product, quantity = 1, size = '') => {
+    const currentProduct = inventory.find((item) => item.id === product.id) || product;
+    if (currentProduct.category === 'Shorts' && !size) { setToast('Selecciona una talla antes de continuar'); return; }
+    if (currentProduct.stock < 1) { setToast(`${currentProduct.name} está agotada`); return; }
+    const safeQuantity = Math.min(quantity, currentProduct.stock);
     setCart((current) => {
-      const exists = current.find((item) => item.id === product.id);
-      if (exists) return current.map((item) => item.id === product.id ? { ...item, quantity: Math.min(product.stock, item.quantity + safeQuantity) } : item);
-      return [...current, { ...product, quantity: safeQuantity }];
+      const exists = current.find((item) => item.id === currentProduct.id && item.size === size);
+      if (exists) return current.map((item) => item.id === currentProduct.id && item.size === size ? { ...item, ...currentProduct, size, quantity: Math.min(currentProduct.stock, item.quantity + safeQuantity) } : item);
+      return [...current, { ...currentProduct, size, quantity: safeQuantity }];
     });
     setSelectedProduct(null);
     setCartOpen(true);
-    setToast(`${product.name} se agregó al carrito`);
+    setToast(`${currentProduct.name} se agregó al carrito`);
   };
 
   const checkout = () => {
     const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
     if (!cart.length) return;
-    const unavailable = cart.find((item) => item.quantity > item.stock);
+    const unavailable = cart.find((item) => item.quantity > (inventory.find((product) => product.id === item.id)?.stock ?? 0));
     if (unavailable) { setToast(`Revisa el stock de ${unavailable.name}`); return; }
     setOrders((current) => [{ id: `#SS-${1049 + current.length}`, customer: 'Cliente nuevo', items: cart.reduce((sum, item) => sum + item.quantity, 0), total, status: 'En preparación', time: 'Ahora mismo', initials: 'CN', tone: 'purple' }, ...current]);
     setInventory((current) => current.map((product) => { const item = cart.find((cartItem) => cartItem.id === product.id); return item ? { ...product, stock: Math.max(0, product.stock - item.quantity), sold: product.sold + item.quantity } : product; }));
     setCart([]);
     setCartOpen(false);
-    setToast('Pedido creado. Te avisaremos cuando salga.');
+    setToast('Solicitud registrada. Confirma los detalles por DM.');
   };
 
   const adjustStock = (product) => {
@@ -742,15 +775,17 @@ function App() {
   };
 
   const renderPage = () => {
-    if (page === 'store') return <StorePage onAddToCart={addToCart} onOpenProduct={setSelectedProduct} setPage={navigatePage} />;
+    if (page === 'store') return <StorePage inventory={inventory} onAddToCart={addToCart} onOpenProduct={setSelectedProduct} setPage={navigatePage} />;
     if (page === 'dashboard') return <DashboardPage orders={orders} inventory={inventory} onAddProduct={() => setShowProductPrompt(true)} onNavigate={navigatePage} />;
     if (page === 'inventory') return <InventoryPage inventory={inventory} onAddProduct={() => setShowProductPrompt(true)} onAdjustStock={adjustStock} />;
     return <OrdersPage orders={orders} onNavigate={navigatePage} />;
   };
 
+  const activeProduct = selectedProduct ? inventory.find((product) => product.id === selectedProduct.id) || selectedProduct : null;
+
   if (!hasEntered) return <EntryGate onEnter={() => { try { sessionStorage.setItem('super-suero-entered', 'true'); } catch { /* demo mode */ } setHasEntered(true); }} />;
 
-  return <div className={`app-shell ${page === 'store' ? 'app-shell--store' : 'app-shell--admin'}`}>{page !== 'store' && <Sidebar page={page} setPage={navigatePage} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} lowStockCount={inventory.filter((item) => item.stock <= 10).length} onCart={() => setCartOpen(true)} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}<div className="app-main"><Topbar page={page} setPage={navigatePage} setMobileOpen={setMobileOpen} onCart={() => setCartOpen(true)} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onAddProduct={() => setShowProductPrompt(true)} />{renderPage()}</div><CartDrawer cart={cart} setCart={setCart} isOpen={cartOpen} onClose={() => setCartOpen(false)} onCheckout={checkout} /><ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />{toast && <Toast message={toast} onClose={() => setToast('')} />}{showProductPrompt && <ProductPrompt onClose={() => setShowProductPrompt(false)} onSave={() => { setShowProductPrompt(false); setToast('Producto creado como borrador'); }} />}</div>;
+  return <div className={`app-shell ${page === 'store' ? 'app-shell--store' : 'app-shell--admin'}`}>{page !== 'store' && <Sidebar page={page} setPage={navigatePage} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} lowStockCount={inventory.filter((item) => item.stock <= 10).length} onCart={() => setCartOpen(true)} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />}<div className="app-main"><Topbar page={page} setPage={navigatePage} setMobileOpen={setMobileOpen} onCart={() => setCartOpen(true)} cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onAddProduct={() => setShowProductPrompt(true)} />{renderPage()}</div><CartDrawer cart={cart} setCart={setCart} inventory={inventory} isOpen={cartOpen} onClose={() => setCartOpen(false)} onCheckout={checkout} /><ProductModal product={activeProduct} onClose={() => setSelectedProduct(null)} onAdd={addToCart} />{toast && <Toast message={toast} onClose={() => setToast('')} />}{showProductPrompt && <ProductPrompt onClose={() => setShowProductPrompt(false)} onSave={() => { setShowProductPrompt(false); setToast('Producto creado como borrador'); }} />}</div>;
 }
 
 function ProductPrompt({ onClose, onSave }) {
