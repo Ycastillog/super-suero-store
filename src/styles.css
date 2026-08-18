@@ -283,7 +283,7 @@ a { color: inherit; text-decoration: none; }
 .product-modal__gallery { position: absolute; right: 18px; bottom: 18px; z-index: 4; display: flex; gap: 6px; }
 .product-modal__gallery button { width: 54px; height: 54px; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.75); border-radius: 5px; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.16); opacity: .78; transition: opacity .2s ease, transform .2s ease, border-color .2s ease; }
 .product-modal__gallery button:hover, .product-modal__gallery button.is-active { opacity: 1; transform: translateY(-2px); border-color: var(--red); }
-.product-modal__gallery img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.product-modal__gallery img { display: block; width: 100%; height: 100%; object-fit: contain; background: #f4f3ee; }
 .inventory-thumb--yellow { background: #d6bd24; }
 .cart-item__thumb--yellow { background: #d6bd24; }
 
