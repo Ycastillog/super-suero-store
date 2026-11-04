@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import './identity.css';
+import Storefront from './retail/Storefront';
 
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path.replace(/^\/+/, '')}`;
 const studioAsset = (path) => publicAsset(path.replace('products/caps/', 'products/caps/studio/'));
@@ -730,9 +731,10 @@ function Toast({ message, onClose }) {
 
 function App() {
   const [hasEntered, setHasEntered] = useState(() => {
+    if (new URLSearchParams(window.location.search).get('view') === 'admin-demo') return true;
     try { return sessionStorage.getItem('super-suero-entered') === 'true'; } catch { return false; }
   });
-  const [page, setPage] = useState('store');
+  const [page, setPage] = useState('dashboard');
   const [cart, setCart] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('super-suero-cart') || '[]');
@@ -807,4 +809,5 @@ function ProductPrompt({ onClose, onSave }) {
   return <><button className="modal-backdrop" onClick={onClose} aria-label="Cerrar nuevo producto" /><div className="simple-modal"><button className="icon-button simple-modal__close" onClick={onClose} aria-label="Cerrar"><X size={19} /></button><span className="eyebrow"><span className="eyebrow__dot" /> Nuevo artículo</span><h2>Crear producto</h2><p>Configura la pieza y déjala lista para el próximo drop.</p><label>Nombre del producto<input placeholder="Ej. Cap Santiago" autoFocus /></label><div className="simple-modal__row"><label>Precio<input placeholder="RD$ 0" /></label><label>Stock inicial<input placeholder="0" /></label></div><button className="button button--dark button--full" onClick={onSave}>Guardar como borrador <Check size={16} /></button></div></>;
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+const isManagementPreview = new URLSearchParams(window.location.search).get('view') === 'admin-demo';
+createRoot(document.getElementById('root')).render(isManagementPreview ? <><div className="management-preview-notice">Vista de gestión de demostración · Los datos de esta vista son ejemplos. <a href="?">Volver a la tienda</a></div><App /></> : <Storefront products={products} />);

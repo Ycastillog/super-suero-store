@@ -7,6 +7,8 @@
   --brand-blue: #435cf0;
   --brand-gray: #77736d;
 }
+.management-preview-notice { background: #15243e; color: #fff; padding: 12px 20px; font: 12px/1.5 Arial,sans-serif; text-align: center; }
+.management-preview-notice a { text-decoration: underline; margin-left: 12px; }
 
 .brand-mark { gap: 10px; }
 .brand-mark__seal { display: block; width: 43px; height: 43px; flex: none; color: var(--ink); }
