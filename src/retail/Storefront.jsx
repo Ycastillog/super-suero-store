@@ -10,9 +10,12 @@ import {
   Plus,
   SlidersHorizontal,
   Check,
+  Play,
+  Pause,
   Camera as Instagram,
 } from "lucide-react";
 import { ProductDialog, BagDialog } from "./CommerceDialogs";
+import MotionPreview from "./MotionPreview";
 import "./storefront.css";
 
 const asset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -122,6 +125,10 @@ export default function Storefront({ products: suppliedProducts }) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("featured");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroPlaying, setHeroPlaying] = useState(
+    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
   const [selected, setSelected] = useState(
     () =>
       products.find(
@@ -136,6 +143,24 @@ export default function Storefront({ products: suppliedProducts }) {
   const searchRef = useRef(null);
   const menuRef = useRef(null);
   const menuTrigger = useRef(null);
+  const menuDestination = useRef(null);
+
+  const selectProduct = (product) => {
+    const url = new URL(window.location.href);
+    if (product) url.searchParams.set("product", product.id);
+    else url.searchParams.delete("product");
+    window.history.replaceState(window.history.state, "", url);
+    setSelected(product);
+  };
+
+  useEffect(() => {
+    const syncProduct = () => {
+      const id = new URLSearchParams(window.location.search).get("product");
+      setSelected(products.find((product) => product.id === id) || null);
+    };
+    window.addEventListener("popstate", syncProduct);
+    return () => window.removeEventListener("popstate", syncProduct);
+  }, [products]);
 
   useEffect(() => {
     try {
@@ -185,7 +210,10 @@ export default function Storefront({ products: suppliedProducts }) {
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", onKey);
       desktop.removeEventListener("change", closeOnDesktop);
-      menuTrigger.current?.focus();
+      (menuDestination.current || menuTrigger.current)?.focus({
+        preventScroll: true,
+      });
+      menuDestination.current = null;
     };
   }, [menuOpen]);
 
@@ -209,6 +237,8 @@ export default function Storefront({ products: suppliedProducts }) {
   const goShop = (nextFamily = "Todos", focusSearch = false) => {
     setFamily(nextFamily);
     setQuery("");
+    if (menuOpen)
+      menuDestination.current = document.getElementById("catalog-title");
     setMenuOpen(false);
     requestAnimationFrame(() => {
       document.getElementById("shop")?.scrollIntoView({
@@ -217,11 +247,15 @@ export default function Storefront({ products: suppliedProducts }) {
           : "smooth",
       });
       if (focusSearch) searchRef.current?.focus({ preventScroll: true });
+      else
+        document
+          .getElementById("catalog-title")
+          ?.focus({ preventScroll: true });
     });
   };
   const add = (product, quantity = 1, size = "") => {
     if (product.category === "Shorts" && !["M", "L", "XL"].includes(size)) {
-      setSelected(product);
+      selectProduct(product);
       return;
     }
     setCart((current) => {
@@ -236,12 +270,37 @@ export default function Storefront({ products: suppliedProducts }) {
           )
         : [...current, { ...product, quantity, size }];
     });
-    setSelected(null);
+    selectProduct(null);
     setBagOpen(true);
     setNotice("Añadido a tu bolsa");
   };
 
-  const featured = products.find((p) => p.id === "ss-cap-red-white");
+  const heroEditions = [
+    {
+      product: products.find((p) => p.id === "ss-cap-red-white"),
+      label: "Signature",
+      family: "SIGNATURE S",
+      caption: "LA S LO DICE TODO.",
+      color: "Crema / Roja",
+    },
+    {
+      product: products.find((p) => p.id === "ss-cap-familia-navy"),
+      label: "Familia",
+      family: "COLECCIÓN FAMILIA",
+      caption: "EL ESTILO SE COMPARTE.",
+      color: "Marino / Negro",
+    },
+    {
+      product: products.find((p) => p.id === "ss-cap-domi"),
+      label: "DOMI",
+      family: "EDICIÓN DOMINICANA",
+      caption: "LOS COLORES DE LOS TUYOS.",
+      color: "Rojo / Blanco / Azul",
+    },
+  ];
+  const edition = heroEditions[heroIndex];
+  const featured = edition.product;
+  const storyProduct = products.find((p) => p.id === "ss-cap-familia-navy");
   const collections = [
     {
       family: "Signature S",
@@ -347,7 +406,14 @@ export default function Storefront({ products: suppliedProducts }) {
             <button onClick={() => goShop("Shorts")}>
               Shorts <ArrowUpRight />
             </button>
-            <a href="#brand-story" onClick={() => setMenuOpen(false)}>
+            <a
+              href="#brand-story"
+              onClick={() => {
+                menuDestination.current =
+                  document.getElementById("story-title");
+                setMenuOpen(false);
+              }}
+            >
               Nuestro juego <ArrowUpRight />
             </a>
           </nav>
@@ -386,38 +452,106 @@ export default function Storefront({ products: suppliedProducts }) {
                 Conoce la marca <ArrowRight size={15} />
               </a>
             </div>
-            <div className="rt-hero-footnote">
-              <span>REPÚBLICA DOMINICANA</span>
-              <span>ESTILO CON FIRMA PROPIA.</span>
+            <div
+              className="rt-hero-editions"
+              role="tablist"
+              aria-label="Piezas destacadas"
+            >
+              {heroEditions.map((item, index) => (
+                <button
+                  key={item.label}
+                  id={`edition-tab-${index}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={heroIndex === index}
+                  aria-controls="edition-preview"
+                  tabIndex={heroIndex === index ? 0 : -1}
+                  onClick={() => setHeroIndex(index)}
+                  onKeyDown={(event) => {
+                    if (
+                      !["ArrowRight", "ArrowLeft", "Home", "End"].includes(
+                        event.key,
+                      )
+                    )
+                      return;
+                    event.preventDefault();
+                    const next =
+                      event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? 2
+                          : (index +
+                              (event.key === "ArrowRight" ? 1 : -1) +
+                              3) %
+                            3;
+                    setHeroIndex(next);
+                    document.getElementById(`edition-tab-${next}`)?.focus();
+                  }}
+                >
+                  <img src={item.product.image} alt="" width="36" height="36" />
+                  <span>
+                    <small>0{index + 1}</small>
+                    {item.label}
+                  </span>
+                  <span className="rt-edition-indicator" />
+                </button>
+              ))}
             </div>
           </div>
-          <div className="rt-hero-visual">
+          <div
+            className={`rt-hero-visual rt-hero-visual--${heroIndex}`}
+            role="tabpanel"
+            id="edition-preview"
+            aria-labelledby={`edition-tab-${heroIndex}`}
+          >
             <div className="rt-hero-caption">
-              <span>LA S LO DICE TODO.</span>
-              <span>01 / SIGNATURE</span>
+              <span>{edition.caption}</span>
+              <div className="rt-hero-playback">
+                <span>
+                  0{heroIndex + 1} / {edition.label.toUpperCase()}
+                </span>
+                <button
+                  type="button"
+                  className="rt-icon"
+                  onClick={() => setHeroPlaying((current) => !current)}
+                  aria-label={
+                    heroPlaying
+                      ? "Pausar movimiento del producto"
+                      : "Reproducir movimiento del producto"
+                  }
+                  title={
+                    heroPlaying ? "Pausar movimiento" : "Ver en movimiento"
+                  }
+                  aria-pressed={heroPlaying}
+                >
+                  {heroPlaying ? <Pause size={15} /> : <Play size={15} />}
+                </button>
+              </div>
             </div>
             <button
               className="rt-hero-product"
-              onClick={() => setSelected(featured)}
+              onClick={() => selectProduct(featured)}
               aria-label={`Ver ${featured.name}`}
             >
-              <img
-                src={featured.image}
-                alt="Gorra Súper Suero crema con visera roja y logo S bordado"
-                fetchPriority="high"
-                width="1254"
-                height="1254"
+              <MotionPreview
+                key={featured.id}
+                images={
+                  featured.gallery?.length ? featured.gallery : [featured.image]
+                }
+                alt={featured.name}
+                playing={heroPlaying && !selected && !bagOpen && !menuOpen}
+                priority
               />
             </button>
             <div className="rt-hero-product-label">
               <div>
-                <small>SIGNATURE S</small>
-                <strong>Crema / Roja</strong>
+                <small>{edition.family}</small>
+                <strong>{edition.color}</strong>
               </div>
               <span>{money(featured.price)}</span>
               <button
                 className="rt-icon"
-                onClick={() => setSelected(featured)}
+                onClick={() => selectProduct(featured)}
                 aria-label="Ver detalles de la gorra destacada"
               >
                 <ArrowUpRight size={23} />
@@ -491,7 +625,9 @@ export default function Storefront({ products: suppliedProducts }) {
           <div className="rt-section-heading">
             <div>
               <span className="rt-eyebrow">ELIGE TU PRÓXIMA PIEZA</span>
-              <h2 id="catalog-title">La colección.</h2>
+              <h2 id="catalog-title" tabIndex={-1}>
+                La colección.
+              </h2>
             </div>
             <p>
               La firma de Súper Suero.
@@ -576,11 +712,12 @@ export default function Storefront({ products: suppliedProducts }) {
               <article className="rt-product-card" key={product.id}>
                 <button
                   className="rt-product-image"
-                  onClick={() => setSelected(product)}
+                  onClick={() => selectProduct(product)}
                   aria-label={`Ver ${product.name}`}
                 >
                   <span className="rt-product-family">{familyOf(product)}</span>
                   <img
+                    className="rt-product-primary"
                     src={product.image}
                     alt={product.name}
                     loading="lazy"
@@ -588,6 +725,17 @@ export default function Storefront({ products: suppliedProducts }) {
                     width="1254"
                     height="1254"
                   />
+                  {product.gallery?.length > 1 && (
+                    <img
+                      className="rt-product-alternate"
+                      src={product.gallery[1]}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      width="1254"
+                      height="1254"
+                    />
+                  )}
                   {product.gallery?.length > 1 && (
                     <span className="rt-photo-count">
                       {product.gallery.length} vistas
@@ -599,7 +747,7 @@ export default function Storefront({ products: suppliedProducts }) {
                 </button>
                 <div className="rt-product-info">
                   <h3>
-                    <button onClick={() => setSelected(product)}>
+                    <button onClick={() => selectProduct(product)}>
                       {product.name.replace("Gorra ", "")}
                     </button>
                   </h3>
@@ -615,7 +763,7 @@ export default function Storefront({ products: suppliedProducts }) {
                   }
                   onClick={() =>
                     product.category === "Shorts"
-                      ? setSelected(product)
+                      ? selectProduct(product)
                       : add(product)
                   }
                 >
@@ -654,27 +802,30 @@ export default function Storefront({ products: suppliedProducts }) {
           id="brand-story"
           aria-labelledby="story-title"
         >
-          <div className="rt-story-art" aria-hidden="true">
-            <span className="rt-story-court" />
+          <button
+            className="rt-story-art"
+            onClick={() => selectProduct(storyProduct)}
+            aria-label="Ver el bordado de la Gorra Familia Marino"
+          >
             <img
-              src={asset("brand-logo.jpg")}
-              alt=""
+              src={storyProduct.image}
+              alt="Bordado Familia en azul marino y amarillo de Súper Suero"
               loading="lazy"
-              width="150"
-              height="150"
+              width="1254"
+              height="1254"
             />
-            <span className="rt-story-art-top">
-              SÚPER SUERO · REPÚBLICA DOMINICANA
-            </span>
+            <span className="rt-story-art-top">EL VÍNCULO QUE NOS UNE.</span>
+            <span className="rt-story-word">FAMILIA.</span>
             <span className="rt-story-art-bottom">
-              EL JUEGO SIGUE
-              <br />
-              <b>FUERA DE LA CANCHA.</b>
+              <span>EL DETALLE TIENE HISTORIA.</span>
+              <span>
+                VER LA PIEZA <ArrowUpRight size={19} />
+              </span>
             </span>
-          </div>
+          </button>
           <div className="rt-story-copy">
             <span className="rt-eyebrow">NUESTRO JUEGO</span>
-            <h2 id="story-title">
+            <h2 id="story-title" tabIndex={-1}>
               De la cancha.
               <br />
               Para la calle.
@@ -690,6 +841,18 @@ export default function Storefront({ products: suppliedProducts }) {
               La S, los colores y el bordado Familia llevan esa conexión a
               piezas para el día a día.
             </p>
+            <div className="rt-founder">
+              <img
+                src={asset("brand-logo.jpg")}
+                alt=""
+                width="44"
+                height="44"
+              />
+              <span>
+                <strong>Ángel Gerardo Suero Castillo</strong>
+                <small>EL JUGADOR DETRÁS DE LA MARCA.</small>
+              </span>
+            </div>
             <a
               href={instagram}
               target="_blank"
@@ -835,7 +998,7 @@ export default function Storefront({ products: suppliedProducts }) {
       <ProductDialog
         key={selected?.id || "closed"}
         product={selected}
-        onClose={() => setSelected(null)}
+        onClose={() => selectProduct(null)}
         onAdd={add}
       />
       <BagDialog

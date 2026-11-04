@@ -17,7 +17,12 @@ import {
   ShoppingBag,
   Trash2,
   X,
+  ZoomIn,
+  ZoomOut,
+  Play,
+  Pause,
 } from "lucide-react";
+import MotionPreview from "./MotionPreview";
 import "./commerce.css";
 
 const money = (amount) => `RD$${new Intl.NumberFormat("es-DO").format(amount)}`;
@@ -114,6 +119,13 @@ function DialogFrame({ open, onClose, titleId, children, drawer = false }) {
 }
 
 function Quantity({ value, onChange, label }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const next = clampQuantity(draft);
+    setDraft(String(next));
+    onChange(next);
+  };
   return (
     <div className="rt-quantity">
       <button
@@ -129,9 +141,23 @@ function Quantity({ value, onChange, label }) {
         min="1"
         max="20"
         step="1"
-        value={value}
+        value={draft}
         aria-label={`Cantidad de ${label}`}
-        onChange={(event) => onChange(clampQuantity(event.target.value))}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
+          if (
+            next !== "" &&
+            Number.isInteger(Number(next)) &&
+            Number(next) >= 1 &&
+            Number(next) <= 20
+          )
+            onChange(Number(next));
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur();
+        }}
       />
       <button
         type="button"
@@ -150,111 +176,252 @@ export function ProductDialog({ product, onClose, onAdd }) {
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
+  const [zoomed, setZoomed] = useState(false);
+  const [photoPlaying, setPhotoPlaying] = useState(false);
+  const [share, setShare] = useState({ status: "idle", url: "" });
+  const photoViewportRef = useRef(null);
+  const shareInputRef = useRef(null);
+  const shareRequestRef = useRef(0);
   useEffect(() => {
     setQuantity(1);
     setSize("");
     setImageIndex(0);
+    setPhotoPlaying(false);
+    setShare({ status: "idle", url: "" });
+    return () => {
+      shareRequestRef.current += 1;
+    };
   }, [product?.id]);
   const gallery = product
     ? [...new Set([product.image, ...(product.gallery || [])].filter(Boolean))]
     : [];
+  const image = gallery[imageIndex] || gallery[0];
+  useLayoutEffect(() => {
+    setZoomed(false);
+  }, [product?.id, image]);
+  useLayoutEffect(() => {
+    const viewport = photoViewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTop = 0;
+    viewport.scrollLeft = 0;
+  }, [zoomed, product?.id, image]);
+  useLayoutEffect(() => {
+    if (zoomed) photoViewportRef.current?.focus({ preventScroll: true });
+  }, [zoomed]);
+  useLayoutEffect(() => {
+    if (share.status !== "manual") return;
+    shareInputRef.current?.focus();
+    shareInputRef.current?.select();
+  }, [share]);
+  const copyProductLink = async () => {
+    const request = ++shareRequestRef.current;
+    const url = window.location.href;
+    setShare({ status: "copying", url });
+    try {
+      await navigator.clipboard.writeText(url);
+      if (request === shareRequestRef.current) {
+        setShare({ status: "copied", url });
+      }
+    } catch {
+      if (request === shareRequestRef.current) {
+        setShare({ status: "manual", url });
+      }
+    }
+  };
   const short = product?.category === "Shorts";
   return (
     <DialogFrame open={Boolean(product)} onClose={onClose} titleId={id}>
       {product && (
         <>
-          <button
-            className="rt-dialog-close"
-            data-dialog-close
-            aria-label="Cerrar detalle del producto"
-            onClick={onClose}
-          >
-            <X size={22} />
-          </button>
-          <div className="rt-detail-visual">
-            <img
-              className="rt-detail-photo"
-              src={gallery[imageIndex] || gallery[0]}
-              alt={product.name}
-              width="1254"
-              height="1254"
-            />
-            {gallery.length > 1 && (
-              <div
-                className="rt-detail-thumbs"
-                aria-label="Fotografías del producto"
-              >
-                {gallery.map((image, index) => (
-                  <button
-                    key={image}
-                    onClick={() => setImageIndex(index)}
-                    aria-label={`Ver foto ${index + 1} de ${product.name}`}
-                    aria-pressed={imageIndex === index}
-                  >
-                    <img src={image} alt="" width="60" height="60" />
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="rt-detail-heading">
+            <span className="rt-detail-kicker">SÚPER SUERO · LA PIEZA</span>
+            <button
+              type="button"
+              className="rt-dialog-close"
+              data-dialog-close
+              aria-label="Cerrar detalle del producto"
+              onClick={onClose}
+            >
+              <X size={22} />
+            </button>
           </div>
-          <div className="rt-detail-copy">
-            <span className="rt-detail-kicker">
-              {product.category} / {product.code}
-            </span>
-            <h2 id={id}>{product.name}</h2>
-            <p className="rt-detail-subtitle">{product.subtitle}</p>
-            <strong className="rt-detail-price">{money(product.price)}</strong>
-            <p className="rt-detail-description">{product.description}</p>
-            <ul className="rt-detail-list">
-              {product.details.map((detail) => (
-                <li key={detail}>
-                  <Check size={15} />
-                  {detail}
-                </li>
-              ))}
-            </ul>
-            {short ? (
-              <fieldset className="rt-sizes">
-                <legend>Elige tu talla</legend>
-                <div>
-                  {["M", "L", "XL"].map((option) => (
+          <div className="rt-detail-body">
+            <div className="rt-detail-visual">
+              <div className="rt-detail-photo-frame">
+                <div
+                  ref={photoViewportRef}
+                  id={`${id}-photo`}
+                  className="rt-detail-photo-viewport"
+                  role="region"
+                  aria-label={`Foto${zoomed ? " ampliada" : ""} de ${product.name}`}
+                  aria-describedby={zoomed ? `${id}-zoom-help` : undefined}
+                  tabIndex={zoomed ? 0 : -1}
+                >
+                  <div
+                    className={`rt-detail-photo${zoomed ? " rt-detail-photo--zoomed" : ""}`}
+                  >
+                    <MotionPreview
+                      key={image}
+                      images={[image]}
+                      alt={product.name}
+                      playing={photoPlaying && !zoomed}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="rt-detail-photo-actions">
+                <button
+                  type="button"
+                  className="rt-commerce-button rt-commerce-button--outline"
+                  aria-controls={`${id}-photo`}
+                  aria-pressed={zoomed}
+                  onClick={() => {
+                    setPhotoPlaying(false);
+                    setZoomed((current) => !current);
+                  }}
+                >
+                  {zoomed ? <ZoomOut size={17} /> : <ZoomIn size={17} />}
+                  {zoomed ? "Ver foto completa" : "Ampliar foto"}
+                </button>
+                {!zoomed && (
+                  <button
+                    type="button"
+                    className="rt-commerce-button rt-commerce-button--outline"
+                    aria-label={
+                      photoPlaying
+                        ? "Pausar movimiento de la foto"
+                        : "Reproducir movimiento de la foto"
+                    }
+                    aria-pressed={photoPlaying}
+                    onClick={() => setPhotoPlaying((current) => !current)}
+                  >
+                    {photoPlaying ? <Pause size={16} /> : <Play size={16} />}
+                    {photoPlaying ? "Pausar" : "Ver en movimiento"}
+                  </button>
+                )}
+                {zoomed && (
+                  <p id={`${id}-zoom-help`}>
+                    Con la foto enfocada, usa las flechas para recorrerla.
+                    También puedes usar el gesto táctil o las barras de
+                    desplazamiento.
+                  </p>
+                )}
+              </div>
+              {gallery.length > 1 && (
+                <div
+                  className="rt-detail-thumbs"
+                  aria-label="Fotografías del producto"
+                >
+                  {gallery.map((image, index) => (
                     <button
-                      type="button"
-                      key={option}
-                      onClick={() => setSize(option)}
-                      aria-pressed={size === option}
-                      aria-label={`Talla ${option}`}
+                      key={image}
+                      onClick={() => {
+                        setPhotoPlaying(false);
+                        setImageIndex(index);
+                      }}
+                      aria-label={`Ver foto ${index + 1} de ${product.name}`}
+                      aria-pressed={imageIndex === index}
                     >
-                      {option}
+                      <img src={image} alt="" width="60" height="60" />
                     </button>
                   ))}
                 </div>
-                <small>
-                  Consulta las medidas y el diseño disponible por mensaje.
-                </small>
-              </fieldset>
-            ) : (
-              <p className="rt-detail-fit">Talla única · Ajustable</p>
-            )}
-            <div className="rt-detail-buy">
-              <Quantity
-                value={quantity}
-                onChange={setQuantity}
-                label={product.name}
-              />
-              <button
-                className="rt-commerce-button"
-                disabled={short && !size}
-                onClick={() => onAdd(product, quantity, size)}
-              >
-                {short && !size ? "Selecciona tu talla" : "Añadir a la bolsa"}
-                <Plus size={17} />
-              </button>
+              )}
             </div>
-            <p className="rt-detail-service">
-              El equipo confirma disponibilidad, precio final, envío y pago por
-              Instagram.
-            </p>
+            <div className="rt-detail-copy">
+              <span className="rt-detail-kicker">
+                {product.category} / {product.code}
+              </span>
+              <h2 id={id}>{product.name}</h2>
+              <p className="rt-detail-subtitle">{product.subtitle}</p>
+              <strong className="rt-detail-price">
+                {money(product.price)}
+              </strong>
+              <p className="rt-detail-description">{product.description}</p>
+              <ul className="rt-detail-list">
+                {product.details.map((detail) => (
+                  <li key={detail}>
+                    <Check size={15} />
+                    {detail}
+                  </li>
+                ))}
+              </ul>
+              {short ? (
+                <fieldset className="rt-sizes">
+                  <legend>Elige tu talla</legend>
+                  <div>
+                    {["M", "L", "XL"].map((option) => (
+                      <button
+                        type="button"
+                        key={option}
+                        onClick={() => setSize(option)}
+                        aria-pressed={size === option}
+                        aria-label={`Talla ${option}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  <small>
+                    Consulta las medidas y el diseño disponible por mensaje.
+                  </small>
+                </fieldset>
+              ) : (
+                <p className="rt-detail-fit">Talla única · Ajustable</p>
+              )}
+              <div className="rt-detail-buy">
+                <Quantity
+                  value={quantity}
+                  onChange={setQuantity}
+                  label={product.name}
+                />
+                <button
+                  className="rt-commerce-button"
+                  disabled={short && !size}
+                  onClick={() => onAdd(product, quantity, size)}
+                >
+                  {short && !size ? "Selecciona tu talla" : "Añadir a la bolsa"}
+                  <Plus size={17} />
+                </button>
+              </div>
+              <p className="rt-detail-service">
+                El equipo confirma disponibilidad, precio final, envío y pago
+                por Instagram.
+              </p>
+              <div className="rt-detail-share">
+                <button
+                  type="button"
+                  className="rt-commerce-button rt-commerce-button--outline"
+                  disabled={share.status === "copying"}
+                  onClick={copyProductLink}
+                >
+                  <Copy size={17} /> Compartir pieza
+                </button>
+                <span
+                  className="rt-share-status"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {share.status === "copied"
+                    ? "Enlace copiado"
+                    : share.status === "manual"
+                      ? "Copia el enlace del campo para compartir esta pieza."
+                      : ""}
+                </span>
+                {share.status === "manual" && (
+                  <label className="rt-share-fallback">
+                    Enlace de la pieza
+                    <input
+                      ref={shareInputRef}
+                      type="text"
+                      value={share.url}
+                      readOnly
+                      onFocus={(event) => event.currentTarget.select()}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -267,6 +434,28 @@ export function BagDialog({ open, onClose, cart, onQuantity, onRemove }) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const summaryRef = useRef(null);
+  const linesRef = useRef(null);
+  const exploreRef = useRef(null);
+  const removedLineRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!open) {
+      removedLineRef.current = null;
+      return;
+    }
+    const removed = removedLineRef.current;
+    if (
+      !removed ||
+      cart.some((item) => item.id === removed.id && item.size === removed.size)
+    ) {
+      return;
+    }
+    const buttons = linesRef.current?.querySelectorAll("[data-bag-remove]");
+    const target =
+      buttons?.[Math.min(removed.index, buttons.length - 1)] ||
+      exploreRef.current;
+    target?.focus();
+    removedLineRef.current = null;
+  }, [cart, open]);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
   const summary = `Hola, Súper Suero. Me gustaría consultar esta selección:\n\n${cart.map((item) => `${item.quantity} × ${item.name}${item.size ? ` · Talla ${item.size}` : ""}\nSKU: ${item.code} · ${money(item.price)} c/u`).join("\n\n")}\n\nSubtotal del catálogo: ${money(total)} (sin envío).\nPor favor, confirmar disponibilidad, precio final, envío y formas de pago.`;
@@ -307,8 +496,8 @@ export function BagDialog({ open, onClose, cart, onQuantity, onRemove }) {
       </div>
       {cart.length ? (
         <>
-          <div className="rt-bag-lines">
-            {cart.map((item) => (
+          <div className="rt-bag-lines" ref={linesRef}>
+            {cart.map((item, index) => (
               <article className="rt-bag-line" key={`${item.id}:${item.size}`}>
                 <img
                   src={item.image}
@@ -332,7 +521,15 @@ export function BagDialog({ open, onClose, cart, onQuantity, onRemove }) {
                     />
                     <button
                       className="rt-bag-remove"
-                      onClick={() => onRemove(item.id, item.size)}
+                      data-bag-remove
+                      onClick={() => {
+                        removedLineRef.current = {
+                          id: item.id,
+                          size: item.size,
+                          index,
+                        };
+                        onRemove(item.id, item.size);
+                      }}
                       aria-label={`Quitar ${item.name}${item.size ? ` talla ${item.size}` : ""} de la bolsa`}
                     >
                       <Trash2 size={16} />
@@ -371,7 +568,7 @@ export function BagDialog({ open, onClose, cart, onQuantity, onRemove }) {
             <button className="rt-commerce-button" onClick={copySelection}>
               {copied ? (
                 <>
-                  <Check size={18} /> Pedido copiado
+                  <Check size={18} /> Selección copiada
                 </>
               ) : (
                 <>
@@ -401,7 +598,11 @@ export function BagDialog({ open, onClose, cart, onQuantity, onRemove }) {
           <ShoppingBag size={42} strokeWidth={1} />
           <h3>Tu próximo estilo empieza aquí.</h3>
           <p>Explora las colecciones y guarda las piezas que van contigo.</p>
-          <button className="rt-commerce-button" onClick={onClose}>
+          <button
+            ref={exploreRef}
+            className="rt-commerce-button"
+            onClick={onClose}
+          >
             Seguir explorando <ArrowRight size={18} />
           </button>
         </div>
