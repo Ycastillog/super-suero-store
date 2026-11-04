@@ -4,6 +4,8 @@ import React, {
   useLayoutEffect,
   useRef,
   useState,
+  lazy,
+  Suspense,
 } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -19,11 +21,12 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-  Play,
-  Pause,
+  Box,
 } from "lucide-react";
-import MotionPreview from "./MotionPreview";
+import { cap3dSpec } from "./cap3dCatalog";
 import "./commerce.css";
+
+const Cap3DViewer = lazy(() => import("./Cap3DViewer"));
 
 const money = (amount) => `RD$${new Intl.NumberFormat("es-DO").format(amount)}`;
 const clampQuantity = (value) =>
@@ -171,22 +174,30 @@ function Quantity({ value, onChange, label }) {
   );
 }
 
-export function ProductDialog({ product, onClose, onAdd }) {
+export function ProductDialog({
+  product,
+  onClose,
+  onAdd,
+  view = "photos",
+  onViewChange,
+}) {
   const id = useId();
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState("");
   const [imageIndex, setImageIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
-  const [photoPlaying, setPhotoPlaying] = useState(false);
   const [share, setShare] = useState({ status: "idle", url: "" });
   const photoViewportRef = useRef(null);
   const shareInputRef = useRef(null);
   const shareRequestRef = useRef(0);
   useEffect(() => {
+    shareRequestRef.current += 1;
+    setShare({ status: "idle", url: "" });
+  }, [view]);
+  useEffect(() => {
     setQuantity(1);
     setSize("");
     setImageIndex(0);
-    setPhotoPlaying(false);
     setShare({ status: "idle", url: "" });
     return () => {
       shareRequestRef.current += 1;
@@ -229,6 +240,8 @@ export function ProductDialog({ product, onClose, onAdd }) {
     }
   };
   const short = product?.category === "Shorts";
+  const modelSpec = cap3dSpec(product?.id);
+  const showModel = modelSpec && view === "3d";
   return (
     <DialogFrame open={Boolean(product)} onClose={onClose} titleId={id}>
       {product && (
@@ -247,85 +260,107 @@ export function ProductDialog({ product, onClose, onAdd }) {
           </div>
           <div className="rt-detail-body">
             <div className="rt-detail-visual">
-              <div className="rt-detail-photo-frame">
+              {modelSpec && (
                 <div
-                  ref={photoViewportRef}
-                  id={`${id}-photo`}
-                  className="rt-detail-photo-viewport"
-                  role="region"
-                  aria-label={`Foto${zoomed ? " ampliada" : ""} de ${product.name}`}
-                  aria-describedby={zoomed ? `${id}-zoom-help` : undefined}
-                  tabIndex={zoomed ? 0 : -1}
+                  className="rt-detail-view-switch"
+                  role="group"
+                  aria-label="Presentación del producto"
                 >
-                  <div
-                    className={`rt-detail-photo${zoomed ? " rt-detail-photo--zoomed" : ""}`}
-                  >
-                    <MotionPreview
-                      key={image}
-                      images={[image]}
-                      alt={product.name}
-                      playing={photoPlaying && !zoomed}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="rt-detail-photo-actions">
-                <button
-                  type="button"
-                  className="rt-commerce-button rt-commerce-button--outline"
-                  aria-controls={`${id}-photo`}
-                  aria-pressed={zoomed}
-                  onClick={() => {
-                    setPhotoPlaying(false);
-                    setZoomed((current) => !current);
-                  }}
-                >
-                  {zoomed ? <ZoomOut size={17} /> : <ZoomIn size={17} />}
-                  {zoomed ? "Ver foto completa" : "Ampliar foto"}
-                </button>
-                {!zoomed && (
                   <button
                     type="button"
-                    className="rt-commerce-button rt-commerce-button--outline"
-                    aria-label={
-                      photoPlaying
-                        ? "Pausar movimiento de la foto"
-                        : "Reproducir movimiento de la foto"
-                    }
-                    aria-pressed={photoPlaying}
-                    onClick={() => setPhotoPlaying((current) => !current)}
+                    aria-pressed={!showModel}
+                    onClick={() => onViewChange("photos")}
                   >
-                    {photoPlaying ? <Pause size={16} /> : <Play size={16} />}
-                    {photoPlaying ? "Pausar" : "Ver en movimiento"}
+                    Fotos
                   </button>
-                )}
-                {zoomed && (
-                  <p id={`${id}-zoom-help`}>
-                    Con la foto enfocada, usa las flechas para recorrerla.
-                    También puedes usar el gesto táctil o las barras de
-                    desplazamiento.
-                  </p>
-                )}
-              </div>
-              {gallery.length > 1 && (
-                <div
-                  className="rt-detail-thumbs"
-                  aria-label="Fotografías del producto"
-                >
-                  {gallery.map((image, index) => (
-                    <button
-                      key={image}
-                      onClick={() => {
-                        setPhotoPlaying(false);
-                        setImageIndex(index);
-                      }}
-                      aria-label={`Ver foto ${index + 1} de ${product.name}`}
-                      aria-pressed={imageIndex === index}
-                    >
-                      <img src={image} alt="" width="60" height="60" />
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    aria-pressed={Boolean(showModel)}
+                    onClick={() => {
+                      setZoomed(false);
+                      onViewChange("3d");
+                    }}
+                  >
+                    <Box size={15} /> Girar en 3D
+                  </button>
                 </div>
+              )}
+              {showModel ? (
+                <Suspense
+                  fallback={
+                    <div className="rt-detail-model-loading" role="status">
+                      Preparando tu vista 3D…
+                    </div>
+                  }
+                >
+                  <Cap3DViewer
+                    spec={modelSpec}
+                    name={product.name}
+                    poster={product.image}
+                  />
+                </Suspense>
+              ) : (
+                <>
+                  <div className="rt-detail-photo-frame">
+                    <div
+                      ref={photoViewportRef}
+                      id={`${id}-photo`}
+                      className="rt-detail-photo-viewport"
+                      role="region"
+                      aria-label={`Foto${zoomed ? " ampliada" : ""} de ${product.name}`}
+                      aria-describedby={zoomed ? `${id}-zoom-help` : undefined}
+                      tabIndex={zoomed ? 0 : -1}
+                    >
+                      <img
+                        className={`rt-detail-photo${zoomed ? " rt-detail-photo--zoomed" : ""}`}
+                        src={image}
+                        alt={product.name}
+                        width="1254"
+                        height="1254"
+                      />
+                    </div>
+                  </div>
+                  <div className="rt-detail-photo-actions">
+                    <button
+                      type="button"
+                      className="rt-commerce-button rt-commerce-button--outline"
+                      aria-controls={`${id}-photo`}
+                      aria-pressed={zoomed}
+                      onClick={() => {
+                        setZoomed((current) => !current);
+                      }}
+                    >
+                      {zoomed ? <ZoomOut size={17} /> : <ZoomIn size={17} />}
+                      {zoomed ? "Ver foto completa" : "Ampliar foto"}
+                    </button>
+                    {zoomed && (
+                      <p id={`${id}-zoom-help`}>
+                        Con la foto enfocada, usa las flechas para recorrerla.
+                        También puedes usar el gesto táctil o las barras de
+                        desplazamiento.
+                      </p>
+                    )}
+                  </div>
+                  {gallery.length > 1 && (
+                    <div
+                      className="rt-detail-thumbs"
+                      aria-label="Fotografías del producto"
+                    >
+                      {gallery.map((image, index) => (
+                        <button
+                          key={image}
+                          onClick={() => {
+                            setImageIndex(index);
+                          }}
+                          aria-label={`Ver foto ${index + 1} de ${product.name}`}
+                          aria-pressed={imageIndex === index}
+                        >
+                          <img src={image} alt="" width="60" height="60" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="rt-detail-copy">

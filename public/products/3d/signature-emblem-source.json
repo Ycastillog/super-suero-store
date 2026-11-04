@@ -1,0 +1,8 @@
+{
+  "asset": "signature-emblem-white.png",
+  "created": "2026-11-04",
+  "tool": "Built-in image generation",
+  "reference": "public/products/caps/cream-black-s.jpg",
+  "purpose": "Embroidery decal for the illustrative Signature 3D cap. Product photographs remain the source for exact appearance.",
+  "prompt": "Use case: background-extraction. Asset type: transparent embroidery decal texture for a true interactive 3D cap. Edit target: the attached original Súper Suero cap photo. Isolate ONLY its existing S shield basketball embroidered emblem. Remove the entire cap, fabric, background, and all other objects. Rectify the existing angled emblem into a straight-on orthographic front view. Preserve the exact distinctive outline, angular S, interior negative spaces and small basketball at the bottom. Change the embroidery thread to neutral WHITE with subtle light-gray stitch texture so the final decal can be tinted by a 3D material. Keep ALL negative space between the embroidered lines fully transparent. Center one single emblem occupying roughly 85% of the transparent square canvas height. No shield fill; transparent holes. No new text, no circular brand ring, no new logo design, no cap silhouette. Do not simplify or redraw the mark into a generic S. Actual transparent alpha background, crisp clean embroidery boundaries, high fidelity to the original."
+}

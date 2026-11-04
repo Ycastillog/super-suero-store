@@ -1,0 +1,133 @@
+.rt-cap3d {
+  width: 100%;
+  min-width: 0;
+  background: #f1f0ec;
+  color: #15243e;
+}
+.rt-cap3d-stage {
+  position: relative;
+  width: 100%;
+  height: 390px;
+  background: radial-gradient(ellipse at 50% 36%, #fffefb, #eeede9 80%);
+}
+.rt-cap3d-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.rt-cap3d-stage canvas:active {
+  cursor: grabbing;
+}
+.rt-cap3d-stage canvas:focus-visible {
+  outline: 2px solid #c93630;
+  outline-offset: -3px;
+}
+.rt-cap3d-loading,
+.rt-cap3d-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  padding: 30px;
+  text-align: center;
+  background: #f1f0ec;
+}
+.rt-cap3d-error {
+  flex-direction: column;
+}
+.rt-cap3d-error img {
+  width: 70%;
+  max-height: 260px;
+  object-fit: contain;
+}
+.rt-cap3d-badge {
+  position: absolute;
+  top: 17px;
+  left: 19px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  font:
+    8px "DM Mono",
+    monospace;
+  letter-spacing: 0.06em;
+  color: #5f6670;
+}
+.rt-cap3d-presets {
+  display: flex;
+  border-block: 1px solid #d6d8d8;
+  margin: 0 20px;
+}
+.rt-cap3d-presets button {
+  flex: 1;
+  min-width: 0;
+  min-height: 45px;
+  background: transparent;
+  color: #616a77;
+  border-bottom: 2px solid transparent;
+  font-size: 11px;
+  padding: 0 5px;
+}
+.rt-cap3d-presets [aria-pressed="true"] {
+  color: #15243e;
+  border-color: #c93630;
+  font-weight: 600;
+}
+.rt-cap3d-tools {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 17px 20px 8px;
+}
+.rt-cap3d-tools > span {
+  width: 10px;
+}
+.rt-cap3d-tools button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: #faf9f6;
+  border: 1px solid #ccd0d2;
+  color: #15243e;
+}
+.rt-cap3d button:disabled {
+  opacity: 0.4;
+  cursor: wait;
+}
+.rt-cap3d-help,
+.rt-cap3d-note {
+  text-align: center;
+  padding: 6px 24px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: #606976;
+}
+.rt-cap3d-note {
+  padding-bottom: 22px;
+  font-size: 9px;
+  max-width: 350px;
+  margin-inline: auto !important;
+}
+@media (max-width: 600px) {
+  .rt-cap3d-stage {
+    height: 310px;
+  }
+  .rt-cap3d-tools {
+    gap: 7px;
+  }
+  .rt-cap3d-tools > span {
+    width: 4px;
+  }
+  .rt-cap3d-tools button {
+    width: 38px;
+    height: 40px;
+  }
+}

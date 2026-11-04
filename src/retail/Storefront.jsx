@@ -10,12 +10,11 @@ import {
   Plus,
   SlidersHorizontal,
   Check,
-  Play,
-  Pause,
+  Box,
   Camera as Instagram,
 } from "lucide-react";
 import { ProductDialog, BagDialog } from "./CommerceDialogs";
-import MotionPreview from "./MotionPreview";
+import { cap3dSpec } from "./cap3dCatalog";
 import "./storefront.css";
 
 const asset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -126,8 +125,10 @@ export default function Storefront({ products: suppliedProducts }) {
   const [sort, setSort] = useState("featured");
   const [menuOpen, setMenuOpen] = useState(false);
   const [heroIndex, setHeroIndex] = useState(0);
-  const [heroPlaying, setHeroPlaying] = useState(
-    () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  const [detailMode, setDetailMode] = useState(() =>
+    new URLSearchParams(window.location.search).get("mode") === "3d"
+      ? "3d"
+      : "photos",
   );
   const [selected, setSelected] = useState(
     () =>
@@ -145,18 +146,28 @@ export default function Storefront({ products: suppliedProducts }) {
   const menuTrigger = useRef(null);
   const menuDestination = useRef(null);
 
-  const selectProduct = (product) => {
+  const selectProduct = (product, mode = "photos") => {
     const url = new URL(window.location.href);
     if (product) url.searchParams.set("product", product.id);
     else url.searchParams.delete("product");
+    const nextMode =
+      product && cap3dSpec(product.id) && mode === "3d" ? "3d" : "photos";
+    if (nextMode === "3d") url.searchParams.set("mode", "3d");
+    else url.searchParams.delete("mode");
     window.history.replaceState(window.history.state, "", url);
     setSelected(product);
+    setDetailMode(nextMode);
   };
 
   useEffect(() => {
     const syncProduct = () => {
       const id = new URLSearchParams(window.location.search).get("product");
       setSelected(products.find((product) => product.id === id) || null);
+      setDetailMode(
+        new URLSearchParams(window.location.search).get("mode") === "3d"
+          ? "3d"
+          : "photos",
+      );
     };
     window.addEventListener("popstate", syncProduct);
     return () => window.removeEventListener("popstate", syncProduct);
@@ -448,9 +459,18 @@ export default function Storefront({ products: suppliedProducts }) {
               <button className="rt-button" onClick={() => goShop()}>
                 Explorar la colección <ArrowUpRight size={18} />
               </button>
-              <a href="#brand-story" className="rt-text-link">
-                Conoce la marca <ArrowRight size={15} />
-              </a>
+              {cap3dSpec(featured.id) ? (
+                <button
+                  className="rt-text-link"
+                  onClick={() => selectProduct(featured, "3d")}
+                >
+                  Girar gorra en 3D <Box size={16} />
+                </button>
+              ) : (
+                <a href="#brand-story" className="rt-text-link">
+                  Conoce la marca <ArrowRight size={15} />
+                </a>
+              )}
             </div>
             <div
               className="rt-hero-editions"
@@ -510,22 +530,17 @@ export default function Storefront({ products: suppliedProducts }) {
                 <span>
                   0{heroIndex + 1} / {edition.label.toUpperCase()}
                 </span>
-                <button
-                  type="button"
-                  className="rt-icon"
-                  onClick={() => setHeroPlaying((current) => !current)}
-                  aria-label={
-                    heroPlaying
-                      ? "Pausar movimiento del producto"
-                      : "Reproducir movimiento del producto"
-                  }
-                  title={
-                    heroPlaying ? "Pausar movimiento" : "Ver en movimiento"
-                  }
-                  aria-pressed={heroPlaying}
-                >
-                  {heroPlaying ? <Pause size={15} /> : <Play size={15} />}
-                </button>
+                {cap3dSpec(featured.id) && (
+                  <button
+                    type="button"
+                    className="rt-icon"
+                    onClick={() => selectProduct(featured, "3d")}
+                    aria-label="Girar gorra destacada en 3D"
+                    title="Girar gorra en 3D"
+                  >
+                    <Box size={16} />
+                  </button>
+                )}
               </div>
             </div>
             <button
@@ -533,14 +548,12 @@ export default function Storefront({ products: suppliedProducts }) {
               onClick={() => selectProduct(featured)}
               aria-label={`Ver ${featured.name}`}
             >
-              <MotionPreview
-                key={featured.id}
-                images={
-                  featured.gallery?.length ? featured.gallery : [featured.image]
-                }
+              <img
+                src={featured.image}
                 alt={featured.name}
-                playing={heroPlaying && !selected && !bagOpen && !menuOpen}
-                priority
+                fetchPriority="high"
+                width="1254"
+                height="1254"
               />
             </button>
             <div className="rt-hero-product-label">
@@ -998,6 +1011,8 @@ export default function Storefront({ products: suppliedProducts }) {
       <ProductDialog
         key={selected?.id || "closed"}
         product={selected}
+        view={detailMode}
+        onViewChange={(mode) => selectProduct(selected, mode)}
         onClose={() => selectProduct(null)}
         onAdd={add}
       />
